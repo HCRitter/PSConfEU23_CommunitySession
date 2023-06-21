@@ -1,0 +1,111 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"pwsh","items":[{"aliases":[],"languageName":"pwsh","name":"pwsh"}]}}
+
+#!markdown
+
+# Where
+## how to query data super fast
+
+#!markdown
+
+![Sorting Meme](../Images/WhereAreMyDragons.jpg)
+
+#!markdown
+
+### Methods to query data
+- Linq Method
+- Piped Where Method
+- .where()-Method
+- 'Switch -File'-Method
+
+#!markdown
+
+#### CSV File/Object search
+Using some sample data from the passengers of the Titanic and search for all males
+
+#!markdown
+
+##### Structure of that file
+| PassengerId | Survived | Pclass | Name | Sex | Age | SibSp | Parch | Ticket | Fare | Cabin | Embarked |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1   | 0   | 3   | Braund, Mr. Owen Harris | male | 22  | 1   | 0   | A/5 21171 | 7.25 |     | S   |
+| 2   | 1   | 1   | Cumings, Mrs. John Bradley (Florence Briggs Thayer) | female | 38  | 1   | 0   | PC 17599 | 71.2833 | C85 | C   |
+| 3   | 1   | 3   | Heikkinen, Miss. Laina | female | 26  | 0   | 0   | STON/O2. 3101282 | 7.925 |     | S   |
+| 4   | 1   | 1   | Futrelle, Mrs. Jacques Heath (Lily May Peel) | female | 35  | 1   | 0   | 113803 | 53.1 | C123 | S   |
+| 5   | 0   | 3   | Allen, Mr. William Henry | male | 35  | 0   | 0   | 373450 | 8.05 |     | S   |
+| 6   | 0   | 3   | Moran, Mr. James | male |     | 0   | 0   | 330877 | 8.4583 |     | Q   |
+| 7   | 0   | 1   | McCarthy, Mr. Timothy J | male | 54  | 0   | 0   | 17463 | 51.8625 | E46 | S   |
+| 8   | 0   | 3   | Palsson, Master. Gosta Leonard | male | 2   | 3   | 1   | 349909 | 21.075 |     | S   |
+| 9   | 1   | 3   | Johnson, Mrs. Oscar W (Elisabeth Vilhelmina Berg) | female | 27  | 0   | 2   | 347742 | 11.1333 |     | S   |
+| 10  | 1   | 2   | Nasser, Mrs. Nicholas (Adele Achem) | female | 14  | 1   | 0   | 237736 | 30.0708 |     | C   |
+
+#!markdown
+
+### Run the tests
+
+#!pwsh
+
+$Import = Import-CSV -Delimiter "," -Path "C:\Temp\titanic.csv"
+$TestList = New-Object -TypeName "System.Collections.Generic.List[pscustomobject]"
+
+(0..50).ForEach({
+    #linq
+    $StopWatch = New-Object System.Diagnostics.Stopwatch
+    $StopWatch.Start()
+    $delegate = [Func[object,bool]] { $args[0].Sex -eq "male" }
+    $Result = [Linq.Enumerable]::Where($Import, $delegate)
+    $Result = [Linq.Enumerable]::ToList($Result)
+    $StopWatch.Stop()
+    $TestList.add([PSCustomObject]@{
+        Method = "Linq Where-Method"
+        TimeElapsedMS = $StopWatch.ElapsedMilliseconds
+    })
+    #Piped Where Method
+    $StopWatch = New-Object System.Diagnostics.Stopwatch
+    $StopWatch.Start()
+    $Result = $Import | Where-Object{$_.Sex -eq "male"}
+    $StopWatch.Stop()
+    $TestList.add([PSCustomObject]@{
+        Method = "Piped Where-Method"
+        TimeElapsedMS = $StopWatch.ElapsedMilliseconds
+    })
+    
+    #.Where() Method
+    $StopWatch = New-Object System.Diagnostics.Stopwatch
+    $StopWatch.Start()
+    $Result = $Import.Where({$_.Sex -eq "male"})
+    $StopWatch.Stop()
+    $TestList.add([PSCustomObject]@{
+        Method = ".where()-Method"
+        TimeElapsedMS = $StopWatch.ElapsedMilliseconds
+    })
+    #Switch -file Method
+    $StopWatch = New-Object System.Diagnostics.Stopwatch
+    $StopWatch.Start()
+    $Result = Switch -file ("C:\Temp\titanic.csv"){
+        {($PSItem.split(","))[5]-eq 'male'}{
+            $PSItem
+        }
+    }
+    $StopWatch.Stop()
+    $TestList.add([PSCustomObject]@{
+        Method = "Switch -file"
+        TimeElapsedMS = $StopWatch.ElapsedMilliseconds
+    })
+})
+
+$TestSummed = foreach($Method in @("Linq Where-Method","Piped Where-Method",".where()-Method","Switch -file")){
+    [PSCustomObject]@{
+        Method = $Method
+        AverageTimeInMS = [int]($TestList | Where-object{$_.Method -eq $Method} |Measure-Object -Property TimeElapsedMS -Average).Average
+    }
+}
+
+#!markdown
+
+### Results
+
+#!pwsh
+
+$TestSummed

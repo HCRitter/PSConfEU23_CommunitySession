@@ -1,0 +1,104 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"pwsh","items":[{"aliases":[],"languageName":"pwsh","name":"pwsh"}]}}
+
+#!markdown
+
+# Sort -Unique
+## Remove all duplicates
+
+#!markdown
+
+![Sorting Meme](../Images/sorting.jpeg)
+
+#!markdown
+
+### Unique sorting methods
+- ```Sort-Object -Unique```
+- ```Sort-Object | Get-Unique ```
+- ```[HashSet]```
+
+#!markdown
+
+### Generate some data
+
+#!pwsh
+
+#List elements
+$ListOptionA ="Blue","Red","Green"
+$ListOptionb ="Dog","Horse","Cat"
+
+#Create a small set of strings based on list elemtents and a random number
+$ListSmall = (1..500).ForEach({
+ "$($ListOptionA[$(Get-Random -Minimum 0 -Maximum ($ListOptionA.count-1))])_$($ListOptionB[$(Get-Random -Minimum 0 -Maximum ($ListOptionB.count-1))])_$(Get-Random -Maximum 10 -Minimum 0)"
+})
+
+#Create a medium set of strings based on list elemtents and a random number
+$ListMedium = (1..10000).ForEach({
+ "$($ListOptionA[$(Get-Random -Minimum 0 -Maximum ($ListOptionA.count-1))])_$($ListOptionB[$(Get-Random -Minimum 0 -Maximum ($ListOptionB.count-1))])_$(Get-Random -Maximum 10 -Minimum 0)"
+})
+
+#Create a large set of strings based on list elemtents and a random number
+$ListLarge = (1..200000).ForEach({
+ "$($ListOptionA[$(Get-Random -Minimum 0 -Maximum ($ListOptionA.count-1))])_$($ListOptionB[$(Get-Random -Minimum 0 -Maximum ($ListOptionB.count-1))])_$(Get-Random -Maximum 10 -Minimum 0)"
+})
+
+#!markdown
+
+### Run the tests
+
+#!pwsh
+
+$FinalTableOfResults = foreach($ListSize in @($ListSmall,$ListMedium,$ListLarge)){
+    $Results = @{ SortObject = $null; SortObjectGetUnique = $null; HashSet = $null}
+    $StopWatch = New-Object System.Diagnostics.Stopwatch
+    $Results.SortObject = [int]$(($(1..5).ForEach({
+        $StopWatch.Start()
+        $UniqueList = $ListSize | Sort-Object -Unique
+        $StopWatch.Stop()
+        $StopWatch.ElapsedMilliseconds
+        $StopWatch.Reset()
+    }) )| Measure-Object -Average).Average
+    $Results.SortObjectGetUnique = [int]$(($(1..5).ForEach({
+        $StopWatch.Start()
+        $UniqueList = $ListSize |  Sort-Object | get-Unique
+        $StopWatch.Stop()
+        $StopWatch.ElapsedMilliseconds
+        $StopWatch.Reset()
+    }) )| Measure-Object -Average).Average
+    $Results.HashSet = [int]$(($(1..5).ForEach({
+        $StopWatch.Start()
+        $HashSet = New-Object System.Collections.Generic.HashSet[string]
+        foreach($Listelement in $ListSize){
+            $HashSet.Add($Listelement) | Out-Null
+        }
+        $StopWatch.Stop()
+        $StopWatch.ElapsedMilliseconds
+        $StopWatch.Reset()
+    }) )| Measure-Object -Average).Average 
+    $Results
+}
+
+#!markdown
+
+### Results small list
+
+#!pwsh
+
+$FinalTableOfResults[0].GetEnumerator() | Sort-Object -Property Value
+
+#!markdown
+
+### Results medium list
+
+#!pwsh
+
+$FinalTableOfResults[1].GetEnumerator() | Sort-Object -Property Value
+
+#!markdown
+
+### Results large list
+
+#!pwsh
+
+$FinalTableOfResults[2].GetEnumerator() | Sort-Object -Property Value

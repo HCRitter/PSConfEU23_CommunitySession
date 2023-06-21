@@ -1,0 +1,146 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"pwsh","items":[{"aliases":[],"languageName":"pwsh","name":"pwsh"}]}}
+
+#!markdown
+
+# File reading
+## Iterating lines super fast
+
+#!markdown
+
+![Reading Meme](../Images/Reading.jpg)
+
+#!markdown
+
+### Methods used
+- ```Get-Content```
+- ```[System.IO.File]::ReadAllLines()```
+- ```[System.IO.StreamReader]::ReadLine() - Classic Way```
+- ```[System.IO.StreamReader]::ReadLine() - Peek```
+- ```[System.IO.StreamReader]::ReadLine() - EndOfStream```
+- ```Switch-Statement -File```
+
+#!markdown
+
+### iterating a 500k lines file
+how does the data looks like:
+|Index|Organization Id|Name|Website|Country|Description|Founded|Industry|Number of employees|
+|---|---|---|---|---|---|---|---|---|
+|1|1C5dD6b45daEA89|Nicholson-Patel|https://www.santana.com/|Belize|Vision-oriented motivating access|1977|Capital Markets / Hedge Fund / Private Equity|2042|
+|2|6db55f0FB43587E|Bender Group|https://bray.com/|Korea|Proactive client-server initiative|1991|Wine / Spirits|6858|
+|3|AFce0E73cdD9eda|Banks-Fletcher|https://goodwin.com/|Malawi|Profit-focused exuding encryption|1970|Mining / Metals|3843|
+|4|da164D72178140b|Sullivan-Miranda|http://www.santana-johnston.com/|Jordan|Future-proofed motivating methodology|1993|Writing / Editing|1092|
+|5|3f4C29fBD260CA1|"Gentry| Reed and Conway"|http://compton.net/|Cyprus|Face-to-face dynamic data-warehouse|2007|Consumer Electronics|2266|
+|6|d25BCFbE31f9ebe|Dickson PLC|https://mccarty-logan.com/|Macedonia|Face-to-face 24hour focus group|1990|Recreational Facilities / Services|2344|
+|7|453a5DdDfCEcCFC|"Coleman| Hodges and Johnston"|http://www.kennedy.com/|Chad|Synchronized client-server complexity|1976|Oil / Energy / Solar / Greentech|1978|
+|8|9E0a7eE79264bAC|"Brewer| Silva and Moran"|http://www.stewart.com/|Turkey|Stand-alone dynamic capacity|2020|Arts / Crafts|8554|
+
+#!markdown
+
+### Run the tests
+
+#!pwsh
+
+$LargeFile = "C:\Temp\Perftest\organizations-500000.csv"
+$StopWatch = New-Object System.Diagnostics.Stopwatch
+$lines = 0
+
+$TestList = (0..2).ForEach({
+
+    #Get-Content -> foreach()
+    $StopWatch.Start()
+    $File = Get-Content $LargeFile
+    foreach ($Line in $File){
+        $lines++
+    }
+    $StopWatch.Stop()
+    [PSCustomObject]@{
+        Method = "Get-Content"
+        Time = $StopWatch.ElapsedMilliseconds
+    }
+    $StopWatch.Reset()
+
+    #System.io.file -> ReadAllLines
+    $StopWatch.Start()
+    $File = [system.io.file]::ReadAllLines($LargeFile)
+    foreach ($Line in $File){
+        $lines++
+    }
+    $StopWatch.Stop()
+    [PSCustomObject]@{
+        Method = "ReadAllLines"
+        Time = $StopWatch.ElapsedMilliseconds
+    }
+    $StopWatch.Reset()
+
+    #StreamReader -> ReadLine
+    $StopWatch.Start()
+    $sread = [System.IO.StreamReader]::new($largefile) 
+    while ($sread.ReadLine()) {
+        $lines++
+    }
+    $StopWatch.Stop()
+    [PSCustomObject]@{
+        Method = "StreamReader ReadLine - ""Classic"""
+        Time = $StopWatch.ElapsedMilliseconds
+    }
+    $StopWatch.Reset()
+
+    #StreamReader -> Peek
+    $StopWatch.Start()
+    $sread = [System.IO.StreamReader]::new($largefile) 
+    while ($sread.Peek() -gt -1) {
+        $sread.ReadLine() | Out-Null
+        $lines++
+    }
+    $StopWatch.Stop()
+    [PSCustomObject]@{
+        Method = "StreamReader ReadLine Peek"
+        Time = $StopWatch.ElapsedMilliseconds
+    }
+    $StopWatch.Reset()
+
+    #StreamReader -> EndOfStream
+    $StopWatch.Start()
+    $sread = [System.IO.StreamReader]::new($largefile) 
+    while ($sread.EndOfStream -eq $false) {
+        $line = $sread.ReadLine()
+        $lines++
+    }
+    $StopWatch.Stop()
+    [PSCustomObject]@{
+        Method = "StreamReader ReadLine - EOS"
+        Time = $StopWatch.ElapsedMilliseconds
+    }
+    $StopWatch.Reset()
+
+
+    #Switch -File
+    $StopWatch.Start()
+    switch -File ($LargeFile){
+        Default {
+            $lines++
+        }
+    }
+    $StopWatch.Stop()
+    [PSCustomObject]@{
+        Method = "Switch -file"
+        Time = $StopWatch.ElapsedMilliseconds
+    }
+    $StopWatch.Reset()
+    [System.GC]::Collect()
+})
+
+#!markdown
+
+### Results
+
+#!pwsh
+
+($TestList | group-object -Property Method).foreach({
+    [PSCustomObject]@{
+        Method = $PSItem.Name
+        Time = $([int]($PSItem.Group.Time | Measure-Object -Average).Average)    
+    }
+})
